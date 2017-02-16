@@ -59,44 +59,48 @@ public class EntityMetamodelImpl implements EntityMetamodel {
         Map<Class<?>, Map<String, Map.Entry<AttributePath, String[]>>> typeAttributeColumnTypeNames = new HashMap<Class<?>, Map<String, Map.Entry<AttributePath, String[]>>>(managedTypes.size());
         EntityManager em = emf.createEntityManager();
 
-        for (ManagedType<?> t : managedTypes) {
-            if (t instanceof EntityType<?>) {
-                EntityType<?> e = (EntityType<?>) t;
-                nameToType.put(e.getName(), e);
+        try {
+            for (ManagedType<?> t : managedTypes) {
+                if (t instanceof EntityType<?>) {
+                    EntityType<?> e = (EntityType<?>) t;
+                    nameToType.put(e.getName(), e);
 
-                if (extendedQuerySupport != null && extendedQuerySupport.supportsAdvancedSql()) {
-                    Set<Attribute<?, ?>> attributes = (Set<Attribute<?, ?>>) t.getAttributes();
+                    if (extendedQuerySupport != null && extendedQuerySupport.supportsAdvancedSql()) {
+                        Set<Attribute<?, ?>> attributes = (Set<Attribute<?, ?>>) t.getAttributes();
 
-                    Map<String, Map.Entry<AttributePath, String[]>> attributeMap = new HashMap<>(attributes.size());
-                    typeAttributeColumnNames.put(t.getJavaType(), Collections.unmodifiableMap(attributeMap));
+                        Map<String, Map.Entry<AttributePath, String[]>> attributeMap = new HashMap<>(attributes.size());
+                        typeAttributeColumnNames.put(t.getJavaType(), Collections.unmodifiableMap(attributeMap));
 
-                    Map<String, Map.Entry<AttributePath, String[]>> attributeTypeMap = new HashMap<>(attributes.size());
-                    typeAttributeColumnTypeNames.put(t.getJavaType(), Collections.unmodifiableMap(attributeTypeMap));
+                        Map<String, Map.Entry<AttributePath, String[]>> attributeTypeMap = new HashMap<>(attributes.size());
+                        typeAttributeColumnTypeNames.put(t.getJavaType(), Collections.unmodifiableMap(attributeTypeMap));
 
-                    for (Attribute<?, ?> attribute : attributes) {
-                        Class<?> fieldType = JpaUtils.resolveFieldClass(t.getJavaType(), attribute);
-                        if (attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.EMBEDDED) {
-                            collectColumnNames(extendedQuerySupport, em, e, attributeMap, attribute.getName(), delegate.embeddable(fieldType));
+                        for (Attribute<?, ?> attribute : attributes) {
+                            Class<?> fieldType = JpaUtils.resolveFieldClass(t.getJavaType(), attribute);
+                            if (attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.EMBEDDED) {
+                                collectColumnNames(extendedQuerySupport, em, e, attributeMap, attribute.getName(), delegate.embeddable(fieldType));
+                            }
+
+                            AttributePath path = new AttributePath(Arrays.<Attribute<?, ?>>asList(attribute), fieldType);
+
+                            // Collect column names
+                            String[] columnNames = extendedQuerySupport.getColumnNames(em, e, attribute.getName());
+                            attributeMap.put(attribute.getName(), new AbstractMap.SimpleEntry<AttributePath, String[]>(path, columnNames));
+
+                            // Collect column types
+                            String[] columnTypes = extendedQuerySupport.getColumnTypes(em, e, attribute.getName());
+                            attributeTypeMap.put(attribute.getName(), new AbstractMap.SimpleEntry<AttributePath, String[]>(path, columnTypes));
                         }
-
-                        AttributePath path = new AttributePath(Arrays.<Attribute<?, ?>>asList(attribute), fieldType);
-
-                        // Collect column names
-                        String[] columnNames = extendedQuerySupport.getColumnNames(em, e, attribute.getName());
-                        attributeMap.put(attribute.getName(), new AbstractMap.SimpleEntry<AttributePath, String[]>(path, columnNames));
-
-                        // Collect column types
-                        String[] columnTypes = extendedQuerySupport.getColumnTypes(em, e, attribute.getName());
-                        attributeTypeMap.put(attribute.getName(), new AbstractMap.SimpleEntry<AttributePath, String[]>(path, columnTypes));
                     }
                 }
-            }
 
-            classToType.put(t.getJavaType(), t);
+                classToType.put(t.getJavaType(), t);
 
-            if (AnnotationUtils.findAnnotation(t.getJavaType(), CTE.class) != null) {
-                cteToType.put(t.getJavaType(), t);
+                if (AnnotationUtils.findAnnotation(t.getJavaType(), CTE.class) != null) {
+                    cteToType.put(t.getJavaType(), t);
+                }
             }
+        } finally {
+            em.close();
         }
 
         this.entityNameMap = Collections.unmodifiableMap(nameToType);
