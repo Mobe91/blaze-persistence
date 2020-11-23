@@ -28,10 +28,14 @@ import com.blazebit.persistence.testsuite.base.jpa.category.NoHibernate51;
 import com.blazebit.persistence.testsuite.base.jpa.category.NoOpenJPA;
 import com.blazebit.persistence.testsuite.entity.Document;
 import com.blazebit.persistence.testsuite.entity.Person;
+import com.blazebit.persistence.testsuite.tx.TxVoidWork;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+import javax.persistence.EntityManager;
 import javax.persistence.Tuple;
+
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -42,6 +46,8 @@ import static org.junit.Assert.assertEquals;
  * @since 1.0.0
  */
 public class ArrayExpressionTest extends AbstractCoreTest {
+
+    private Document doc1;
 
     @Override
     protected void setUpOnce() {
@@ -58,6 +64,45 @@ public class ArrayExpressionTest extends AbstractCoreTest {
                 " LEFT JOIN d.contacts contacts_d_idx_1"
                 + onClause("KEY(contacts_d_idx_1) = d.idx"), criteria.getQueryString());
         criteria.getResultList();
+    }
+
+    @Test
+    public void testEclipseLinkBug() {
+        Document doc1 = new Document("doc1");
+        transactional(new TxVoidWork() {
+            @Override
+            public void work(EntityManager em) {
+                Document doc2 = new Document("Doc2");
+                Document doc3 = new Document("doC3");
+                Document doc4 = new Document("dOc4");
+
+                Person o1 = new Person("Karl1");
+                Person o2 = new Person("Karl2");
+                Person o3 = new Person("Moritz");
+
+                doc1.setOwner(o1);
+
+                doc1.getContacts().put(1, o1);
+                doc1.getContacts().put(2, o2);
+
+                doc4.getContacts().put(1, o3);
+
+                em.persist(o1);
+                em.persist(o2);
+                em.persist(o3);
+
+                em.persist(doc1);
+                em.persist(doc2);
+                em.persist(doc3);
+                em.persist(doc4);
+            }
+        });
+
+        CriteriaBuilder<Tuple> criteria = cbf.create(em, Tuple.class).from(Document.class, "d");
+        criteria
+                .select("VALUE(d.contacts)").select("d.name").where("d.id").eq(doc1.getId());
+
+        List<Tuple> d = criteria.getResultList();
     }
 
     @Test

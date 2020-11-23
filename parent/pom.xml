@@ -80,7 +80,7 @@
         <version.datanucleus.api-jpa-5.1>5.1.4</version.datanucleus.api-jpa-5.1>
         <version.datanucleus.jpa-5.1>5.0.4</version.datanucleus.jpa-5.1>
 
-        <version.eclipselink>2.6.4</version.eclipselink>
+        <version.eclipselink>2.6.9</version.eclipselink>
         <version.openjpa>3.1.0</version.openjpa>
 
         <version.deltaspike-1.7>1.7.2</version.deltaspike-1.7>
